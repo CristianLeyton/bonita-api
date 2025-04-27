@@ -18,8 +18,11 @@ class ProductController extends Controller
             'sku',
             'price',
             'quantity',
-            'categorie_id'
-        ])->with('categorie:id,name')->get();
+            'categorie_id',
+        ])->with([
+            'categorie:id,name',
+            'colors:id,name,hex_code'
+        ])->get();
 
         return response()->json([
             'success' => true,

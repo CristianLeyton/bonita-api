@@ -74,8 +74,24 @@ class ProductResource extends Resource
                     ->createOptionModalHeading('Crear categoría')
                     ->createOptionForm(\App\Filament\Resources\CategorieResource::getFormSchema()),
                 Forms\Components\Textarea::make('description')
-                    ->label('Descripción: ')
-                    ->columnSpanFull(),
+                    ->label('Descripción: '),
+                Forms\Components\Select::make('colors')
+                    ->label('Colores disponibles: ')
+                    ->relationship('colors', 'name')
+                    ->multiple()
+                    ->preload()
+                    ->searchable()
+                    ->createOptionModalHeading('Crear color')
+                    ->createOptionForm([
+                        Forms\Components\Grid::make(2)->schema([
+                            Forms\Components\TextInput::make('name')
+                                ->label('Nombre')
+                                ->required(),
+                            Forms\Components\ColorPicker::make('hex_code')
+                                ->label('Código de color')
+                                ->required(),
+                        ]),
+                    ]),
             ]);
     }
 
@@ -132,6 +148,11 @@ class ProductResource extends Resource
                 Tables\Filters\SelectFilter::make('categorie_id')
                     ->label('Categoría')
                     ->relationship('categorie', 'name')
+                    ->searchable()
+                    ->preload(),
+                Tables\Filters\SelectFilter::make('colors')
+                    ->label('Color')
+                    ->relationship('colors', 'name')
                     ->searchable()
                     ->preload(),
             ])
