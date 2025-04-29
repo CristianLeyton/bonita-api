@@ -33,8 +33,10 @@ class CategorieResource extends Resource
                 Forms\Components\TextInput::make('name')
                     ->label('Nombre: ')
                     ->required()
+                    ->unique(ignoreRecord: true)
                     ->validationMessages([
                         'required' => 'El nombre es requerido',
+                        'unique' => 'El nombre ya está en uso',
                     ])
                     ->maxLength(255)
                     ->columnSpan([

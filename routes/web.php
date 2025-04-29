@@ -15,6 +15,8 @@ Route::get('/', function () {
 
 Route::get('/api/categories', [CategoryController::class, 'index']);
 Route::get('/api/products', [ProductController::class, 'index']);
+Route::get('/api/categories/{id}/products', [CategoryController::class, 'products']);
+Route::get('/api/products/{id}', [ProductController::class, 'show']);
 
 
 /* Route::get('/clear-cache', function () {
