@@ -22,9 +22,11 @@ class ProductController extends Controller
             });
         }
 
-        // Filtro por categoría
-        if ($request->has('category_id')) {
-            $query->where('categorie_id', $request->input('category_id'));
+        // Filtro por categoría usando slug
+        if ($request->has('category_slug')) {
+            $query->whereHas('categorie', function ($q) use ($request) {
+                $q->where('slug', $request->input('category_slug'));
+            });
         }
 
         // Ordenamiento
@@ -37,6 +39,7 @@ class ProductController extends Controller
         $products = $query->select([
             'id',
             'name',
+            'slug',
             'urlImage',
             'description',
             'sku',
@@ -44,7 +47,7 @@ class ProductController extends Controller
             'quantity',
             'categorie_id',
         ])->with([
-            'categorie:id,name',
+            'categorie:id,name,slug',
             'colors:id,name,hex_code'
         ])->paginate($perPage);
 
@@ -60,12 +63,13 @@ class ProductController extends Controller
         ]);
     }
 
-    public function show($id): JsonResponse
+    public function show($slug): JsonResponse
     {
-        $product = Product::with([
-            'categorie:id,name',
-            'colors:id,name,hex_code'
-        ])->findOrFail($id);
+        $product = Product::where('slug', $slug)
+            ->with([
+                'categorie:id,name,slug',
+                'colors:id,name,hex_code'
+            ])->firstOrFail();
 
         return response()->json([
             'success' => true,
