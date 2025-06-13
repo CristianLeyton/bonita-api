@@ -6,7 +6,7 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\ProductController;
 use Illuminate\Support\Facades\Artisan;
-
+use App\Http\Controllers\MailController;
 Route::get('/', function () {
     return redirect('/admin');
 });
@@ -17,7 +17,7 @@ Route::get('/api/categories', [CategoryController::class, 'index']);
 Route::get('/api/products', [ProductController::class, 'index']);
 Route::get('/api/categories/{slug}/products', [CategoryController::class, 'products']);
 Route::get('/api/products/{slug}', [ProductController::class, 'show']);
-
+Route::post('/api/send-mail', [MailController::class, 'send'])->withoutMiddleware(['web']);
 
 /* Route::get('/clear-cache', function () {
     Artisan::call('config:clear');

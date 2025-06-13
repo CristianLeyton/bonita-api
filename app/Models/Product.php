@@ -39,6 +39,9 @@ class Product extends Model
 
         static::creating(function ($product) {
             $product->slug = Str::slug($product->name);
+            if (empty($product->sku)) {
+                $product->sku = static::max('id') + 1;
+            }
         });
 
         static::updating(function ($product) {

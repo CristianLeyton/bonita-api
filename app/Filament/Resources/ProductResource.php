@@ -48,31 +48,43 @@ class ProductResource extends Resource
                 Forms\Components\TextInput::make('sku')
                     ->label('SKU: ')
                     ->unique(Product::class, 'sku', ignoreRecord: true)
+                    ->required()
+                    ->numeric()
+                    ->default(fn() => (string)(Product::max('id') ?? 0) + 1)
+                    ->maxLength(20)
                     ->validationMessages([
+                        'required' => 'El codigo SKU es requerido',
                         'unique' => 'El codigo SKU ya existe',
-                    ])
-                    ->maxLength(255)
-                    ->default(null),
+                        'max_digits' => 'El codigo no puede superar los 20 digitos',
+                    ]),
                 Forms\Components\TextInput::make('price')
                     ->label('Precio: ')
                     ->required()
                     ->numeric()
+                    ->minValue(0)
                     ->prefix('ARS $')
                     ->validationMessages([
                         'required' => 'El precio es requerido',
                         'numeric' => 'El precio debe ser un numero',
+                        'min' => 'La cantidad no puede ser menor a cero',
                     ]),
                 Forms\Components\TextInput::make('quantity')
                     ->label('Cantidad: ')
                     ->numeric()
-                    ->default(null)
+                    ->required()
+                    ->minValue(0)
+                    ->default(0)
                     ->validationMessages([
                         'numeric' => 'La cantidad debe ser un numero',
+                        'min' => 'La cantidad no puede ser menor a cero'
                     ]),
                 Forms\Components\Select::make('categorie_id')
                     ->label('Categoría: ')
                     ->relationship('categorie', 'name')
                     ->required()
+                    ->validationMessages([
+                        'required' => 'Selecciona una categoria',
+                    ])
                     ->createOptionModalHeading('Crear categoría')
                     ->createOptionForm(\App\Filament\Resources\CategorieResource::getFormSchema()),
                 Forms\Components\Textarea::make('description')
