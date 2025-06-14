@@ -28,10 +28,17 @@ class ColorResource extends Resource
                 Forms\Components\TextInput::make('name')
                     ->label('Nombre')
                     ->required()
-                    ->maxLength(255),
+                    ->validationMessages([
+                        'required' => 'El nombre es requerido',
+                        'max' => 'Ingrese un nombre de maximo 30 caracteres'
+                        ])
+                    ->maxLength(30),
                 Forms\Components\ColorPicker::make('hex_code')
                     ->label('Código de color')
-                    ->required(),
+                    ->required()
+                    ->validationMessages([
+                        'required' => 'Seleccione un color',
+                        ]),
             ]);
     }
 

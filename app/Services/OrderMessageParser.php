@@ -41,7 +41,6 @@ class OrderMessageParser
                 $currentItem = [
                     'name' => trim($matches[1]),
                     'quantity' => 1,
-                    'price' => 0,
                     'sku' => null
                 ];
                 continue;
@@ -51,14 +50,6 @@ class OrderMessageParser
             if (preg_match('/Cantidad:\s*(\d+)/', $line, $matches)) {
                 if ($currentItem) {
                     $currentItem['quantity'] = (int)$matches[1];
-                }
-                continue;
-            }
-
-            // Extraer precio
-            if (preg_match('/Precio:\s*\$?(\d+)/', $line, $matches)) {
-                if ($currentItem) {
-                    $currentItem['price'] = (float)$matches[1];
                 }
                 continue;
             }
@@ -81,11 +72,21 @@ class OrderMessageParser
             throw new \Exception('No se encontraron productos en el mensaje.');
         }
 
+        // Calcular el total real usando los precios de la base de datos
+        $total = 0;
+        foreach ($items as &$item) {
+            $product = $this->findProduct($item);
+            if ($product) {
+                $item['price'] = $product->price;
+                $total += $product->price * $item['quantity'];
+            }
+        }
+
         $this->data = [
             'phone' => $phone,
             'address' => $this->extractAddress(),
             'postal_code' => $this->extractPostalCode(),
-            'total' => $this->extractTotal(),
+            'total' => $total,
             'items' => $items
         ];
 

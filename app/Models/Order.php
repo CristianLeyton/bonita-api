@@ -52,8 +52,13 @@ class Order extends Model
     {
         parent::boot();
 
+        // Agregar ordenamiento por defecto
+        static::addGlobalScope('order', function ($query) {
+            $query->orderBy('created_at', 'desc');
+        });
+
         static::creating(function ($order) {
-            if ($order->message) {
+            if ($order->message && str_contains($order->message, 'Celular:')) {
                 $parser = new OrderMessageParser($order->message);
                 $order->phone = $parser->getPhone();
                 $order->address = $parser->getAddress();
@@ -62,7 +67,7 @@ class Order extends Model
         });
 
         static::created(function ($order) {
-            if ($order->message) {
+            if ($order->message && str_contains($order->message, 'Celular:')) {
                 $parser = new OrderMessageParser($order->message);
                 $items = $parser->getItems();
                 $createdItems = 0;
@@ -71,7 +76,7 @@ class Order extends Model
                 foreach ($items as $item) {
                     $product = $parser->findProduct($item);
                     if ($product) {
-                        $price = $item['price'] ?? $product->price;
+                        $price = $product->price;
                         $quantity = $item['quantity'] ?? 1;
                         $itemTotal = $price * $quantity;
                         $total += $itemTotal;
@@ -87,7 +92,7 @@ class Order extends Model
                 }
 
                 if ($createdItems === 0) {
-                    throw new \Exception('No se pudo vincular ningún producto al pedido');
+                    throw new \Exception('No se encontraron productos en el mensaje.');
                 }
 
                 // Actualizar el total después de crear los items

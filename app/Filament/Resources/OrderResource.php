@@ -43,11 +43,18 @@ class OrderResource extends Resource
                     ->schema([
                         Forms\Components\TextInput::make('subject')
                             ->label('Asunto')
-                            ->required(),
+                            ->required()
+                            ->validationMessages([
+                                'required' => 'El asunto es requerido',
+                            ]),
                         Forms\Components\TextInput::make('email')
                             ->label('Correo')
                             ->email()
-                            ->required(),
+                            ->required()
+                            ->validationMessages([
+                                'required' => 'El correo es requerido',
+                                'email' => 'Ingrese un correo valido'
+                            ]),
                         Forms\Components\TextInput::make('phone')
                             ->label('Teléfono')
                             ->tel(),
@@ -66,7 +73,11 @@ class OrderResource extends Resource
                                 'paid' => 'Pagado',
                                 'shipped' => 'Enviado',
                             ])
-                            ->required(),
+                            ->default('pending')
+                            ->required()
+                            ->validationMessages([
+                                'required' => 'El estado es requerido',
+                            ]),
                         Forms\Components\TextInput::make('total')
                             ->label('Total')
                             ->numeric()
@@ -83,7 +94,7 @@ class OrderResource extends Resource
                             }),
                         Forms\Components\Textarea::make('message')
                             ->label('Mensaje')
-                            ->rows(3),
+                            ->rows(6),
                     ])->columns(2),
 
                 Forms\Components\Section::make('Productos')
@@ -98,41 +109,56 @@ class OrderResource extends Resource
                                     ->searchable()
                                     ->preload()
                                     ->required()
+                                    ->validationMessages([
+                                        'required' => 'El nombre de pruducto es requerido',
+                                    ])
                                     ->live()
                                     ->afterStateUpdated(function ($state, Forms\Set $set, Forms\Get $get) {
                                         if ($state) {
                                             $product = Product::find($state);
                                             if ($product) {
                                                 $set('price', $product->price);
+                                                $set('color_id', null); // Reset color when product changes
                                                 static::updateTotal($get, $set);
                                             }
                                         }
                                     }),
                                 Forms\Components\Select::make('color_id')
                                     ->label('Color')
-                                    ->options(Color::all()->pluck('name', 'id'))
+                                    ->options(function (Forms\Get $get) {
+                                        $productId = $get('product_id');
+                                        if (!$productId) {
+                                            return [];
+                                        }
+
+                                        $product = Product::find($productId);
+                                        if (!$product) {
+                                            return [];
+                                        }
+
+                                        return $product->colors->pluck('name', 'id');
+                                    })
                                     ->searchable()
                                     ->preload()
-                                    ->nullable(),
+                                    ->nullable()
+                                    ->disabled(fn(Forms\Get $get) => !$get('product_id')),
                                 Forms\Components\TextInput::make('quantity')
                                     ->label('Cantidad')
                                     ->numeric()
                                     ->required()
                                     ->default(1)
                                     ->minValue(1)
+                                    ->validationMessages([
+                                        'required' => 'La cantidad es requerida',
+                                        'numeric' => 'Ingrese un número por favor',
+                                        'min' => 'El valor mínimo es 1'
+                                    ])
                                     ->live()
                                     ->afterStateUpdated(function ($state, Forms\Set $set, Forms\Get $get) {
-                                        $productId = $get('product_id');
-                                        if ($productId && $state) {
-                                            $product = Product::find($productId);
-                                            if ($product) {
-                                                $set('price', $product->price * $state);
-                                                static::updateTotal($get, $set);
-                                            }
-                                        }
+                                        static::updateTotal($get, $set);
                                     }),
                                 Forms\Components\TextInput::make('price')
-                                    ->label('Precio')
+                                    ->label('Precio por unidad')
                                     ->numeric()
                                     ->required()
                                     ->default(0)
@@ -188,14 +214,26 @@ class OrderResource extends Resource
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('status')
+                ->label('Estado del pedido')
                     ->options([
                         'pending' => 'Pendiente',
-                        'viewed' => 'Visto',
-                        'paid' => 'Pagado',
-                        'preparing' => 'Preparando',
-                        'shipped' => 'Enviado',
-                        'delivered' => 'Entregado',
+                        'processing' => 'En proceso',
+                        'completed' => 'Completado',
+                        'cancelled' => 'Cancelado',
                     ]),
+                Tables\Filters\Filter::make('created_at')
+                    ->form([
+                        Forms\Components\DatePicker::make('created_at')
+                            ->label('Fecha del pedido')
+                            ->native(false)
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        return $query
+                            ->when(
+                                $data['created_at'],
+                                fn(Builder $query, $date): Builder => $query->whereDate('created_at', $date),
+                            );
+                    })
             ])
             ->actions([
                 Tables\Actions\Action::make('view')
@@ -205,10 +243,10 @@ class OrderResource extends Resource
                         'filament.resources.order-resource.pages.view-order',
                         ['order' => $record]
                     ))
-                    ->modalWidth('4xl')
+                    ->modalWidth('3xl')
                     ->modalHeading(fn(Order $record) => "Pedido #{$record->id}")
                     ->modalSubmitAction(false)
-                    ->modalCancelAction(false)
+                    ->modalCancelAction()
                     ->extraModalFooterActions([
                         Tables\Actions\Action::make('markAsShipped')
                             ->label('Marcar como Enviado')
@@ -259,7 +297,13 @@ class OrderResource extends Resource
 
         if ($items) {
             foreach ($items as $item) {
-                $total += ($item['price'] ?? 0) * ($item['quantity'] ?? 1);
+                if (isset($item['product_id'])) {
+                    $product = Product::find($item['product_id']);
+                    if ($product) {
+                        $quantity = $item['quantity'] ?? 1;
+                        $total += $product->price * $quantity;
+                    }
+                }
             }
         }
 
