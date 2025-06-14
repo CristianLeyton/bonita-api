@@ -214,7 +214,7 @@ class OrderResource extends Resource
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('status')
-                ->label('Estado del pedido')
+                    ->label('Estado del pedido')
                     ->options([
                         'pending' => 'Pendiente',
                         'processing' => 'En proceso',
