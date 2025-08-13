@@ -38,13 +38,43 @@ class ProductResource extends Resource
                         'unique' => 'El nombre ya está en uso',
                     ])
                     ->maxLength(255),
-                Forms\Components\FileUpload::make('urlImage')
-                    ->label('Imagen: ')
-                    ->image()
-                    ->required()
-                    ->validationMessages([
-                        'required' => 'La imagen es requerida',
-                    ]),
+
+                // Reemplazar el FileUpload simple por un componente de múltiples imágenes
+                Forms\Components\Repeater::make('images')
+                    ->label('Imágenes')
+                    ->relationship('images')
+                    ->addActionLabel('Agregar imagen')
+                    ->schema([
+                        Forms\Components\FileUpload::make('url')
+                            ->label('Imagen')
+                            ->image()
+                            ->required()
+                            ->validationMessages([
+                                'required' => 'La imagen es requerida',
+                            ]),
+                        Forms\Components\TextInput::make('alt_text')
+                            ->label('Descripción')
+                            ->maxLength(255),
+                        Forms\Components\Toggle::make('is_primary')
+                            ->label('Imagen principal')
+                            ->default(false),
+                    ])
+                    ->defaultItems(1)
+                    ->minItems(1)
+                    ->maxItems(5)
+                    ->reorderable()
+                    ->orderColumn('sort_order')
+                    ->collapsible()
+                    ->itemLabel(function (array $state): string {
+                        $url = $state['url'] ?? null;
+                        if (is_array($url)) {
+                            $url = $url[0] ?? null;
+                        }
+                        $isPrimary = $state['is_primary'] ?? false;
+                        $label = $state['alt_text'] ?? 'Nueva imagen';
+                        return $isPrimary ? "⭐ {$label}" : $label;
+                    }),
+
                 Forms\Components\TextInput::make('sku')
                     ->label('SKU: ')
                     ->unique(Product::class, 'sku', ignoreRecord: true)
@@ -118,9 +148,12 @@ class ProductResource extends Resource
                     ->label('Nombre')
                     ->searchable()
                     ->sortable(),
-                Tables\Columns\ImageColumn::make('urlImage')
+
+                // Mostrar la imagen principal
+                Tables\Columns\ImageColumn::make('primaryImage.url')
                     ->label('Imagen')
                     ->square(),
+
                 Tables\Columns\TextColumn::make('sku')
                     ->label('Codigo SKU')
                     ->searchable()

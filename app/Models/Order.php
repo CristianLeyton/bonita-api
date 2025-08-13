@@ -21,18 +21,43 @@ class Order extends Model
         'phone',
         'address',
         'postal_code',
-        'total'
+        'total',
+        'coupon_id',
+        'subtotal',
+        'discount_amount',
     ];
 
     protected $casts = [
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
-        'total' => 'decimal:2'
+        'total' => 'decimal:2',
+        'subtotal' => 'decimal:2',
+        'discount_amount' => 'decimal:2',
     ];
 
     public function items(): HasMany
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    public function coupon()
+    {
+        return $this->belongsTo(Coupon::class);
+    }
+
+    /**
+     * Ensure only active coupons can be assigned
+     */
+    public function setCouponIdAttribute($value)
+    {
+        if ($value) {
+            $coupon = Coupon::find($value);
+            if (!$coupon || !$coupon->is_active) {
+                throw new \InvalidArgumentException('No se puede asignar un cupón inactivo o inexistente.');
+            }
+        }
+
+        $this->attributes['coupon_id'] = $value;
     }
 
     public function updateStock($action = 'decrease')
@@ -46,6 +71,26 @@ class Order extends Model
             }
             $product->save();
         }
+    }
+
+    /**
+     * Calculate order totals with coupon discount
+     */
+    public function calculateTotals(): void
+    {
+        // Calcular subtotal (sin descuento)
+        $this->subtotal = $this->items->sum(function ($item) {
+            return $item->price * $item->quantity;
+        });
+
+        // Calcular descuento si hay cupón
+        $this->discount_amount = 0;
+        if ($this->coupon && $this->coupon->is_active) {
+            $this->discount_amount = $this->coupon->calculateDiscount($this->subtotal);
+        }
+
+        // Calcular total final
+        $this->total = $this->subtotal - $this->discount_amount;
     }
 
     protected static function boot()
@@ -71,15 +116,12 @@ class Order extends Model
                 $parser = new OrderMessageParser($order->message);
                 $items = $parser->getItems();
                 $createdItems = 0;
-                $total = 0;
 
                 foreach ($items as $item) {
                     $product = $parser->findProduct($item);
                     if ($product) {
                         $price = $product->price;
                         $quantity = $item['quantity'] ?? 1;
-                        $itemTotal = $price * $quantity;
-                        $total += $itemTotal;
 
                         $order->items()->create([
                             'product_id' => $product->id,
@@ -95,17 +137,15 @@ class Order extends Model
                     throw new \Exception('No se encontraron productos en el mensaje.');
                 }
 
-                // Actualizar el total después de crear los items
-                $order->total = $total;
+                // Calcular totales con el nuevo método
+                $order->calculateTotals();
                 $order->save();
             }
         });
 
         static::saving(function ($order) {
-            if ($order->isDirty('items')) {
-                $order->total = $order->items->sum(function ($item) {
-                    return $item->price * $item->quantity;
-                });
+            if ($order->isDirty('items') || $order->isDirty('coupon_id')) {
+                $order->calculateTotals();
             }
         });
     }

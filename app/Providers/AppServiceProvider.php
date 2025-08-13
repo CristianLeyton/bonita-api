@@ -4,8 +4,10 @@ namespace App\Providers;
 
 use App\Models\Product;
 use App\Models\Categorie;
+use App\Models\ProductImage;
 use App\Observers\ProductObserver;
 use App\Observers\CategorieObserver;
+use App\Observers\ProductImageObserver;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Database\Eloquent\Model;
 
@@ -28,5 +30,6 @@ class AppServiceProvider extends ServiceProvider
         Model::unguard();
         //Product::observe(ProductObserver::class);
         //Categorie::observe(CategorieObserver::class);
+        ProductImage::observe(ProductImageObserver::class);
     }
 }

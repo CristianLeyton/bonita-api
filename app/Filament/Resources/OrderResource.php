@@ -86,10 +86,63 @@ class OrderResource extends Resource
                             ->dehydrated()
                             ->afterStateHydrated(function ($component, $state, $record) {
                                 if ($record) {
-                                    $total = $record->items->sum(function ($item) {
-                                        return $item->price * $item->quantity;
-                                    });
-                                    $component->state($total);
+                                    $record->calculateTotals();
+                                    $component->state($record->total);
+                                }
+                            }),
+                        Forms\Components\Select::make('coupon_id')
+                            ->label('Cupón de descuento')
+                            ->relationship('coupon', 'code', function ($query) {
+                                return $query->active(); // Solo cupones activos
+                            })
+                            ->searchable()
+                            ->preload()
+                            ->placeholder('Seleccionar cupón (opcional)')
+                            ->helperText('Aplica un descuento al pedido')
+                            ->afterStateUpdated(function ($state, Forms\Set $set, Forms\Get $get) {
+                                static::updateTotal($get, $set);
+                            })
+                            ->rules([
+                                'nullable',
+                                'exists:coupons,id',
+                            ])
+                            ->afterStateUpdated(function ($state, Forms\Set $set, Forms\Get $get) {
+                                // Validación adicional para cupones activos
+                                if ($state) {
+                                    $coupon = \App\Models\Coupon::find($state);
+                                    if (!$coupon || !$coupon->is_active) {
+                                        $set('coupon_id', null);
+                                        // Mostrar notificación de error
+                                        \Filament\Notifications\Notification::make()
+                                            ->title('Cupón no válido')
+                                            ->body('El cupón seleccionado no está activo.')
+                                            ->danger()
+                                            ->send();
+                                    }
+                                }
+                            }),
+                        Forms\Components\TextInput::make('subtotal')
+                            ->label('Subtotal (sin descuento)')
+                            ->numeric()
+                            ->default(0)
+                            ->disabled()
+                            ->dehydrated()
+                            ->afterStateHydrated(function ($component, $state, $record) {
+                                if ($record) {
+                                    $record->calculateTotals();
+                                    $component->state($record->subtotal);
+                                }
+                            }),
+                        Forms\Components\TextInput::make('discount_amount')
+                            ->label('Descuento aplicado')
+                            ->numeric()
+                            ->default(0)
+                            ->disabled()
+                            ->dehydrated()
+                            ->afterStateHydrated(function ($component, $state, $record) {
+                                if ($record) {
+                                    $record->calculateTotals();
+                                    $component->state($record->discount_amount);
                                 }
                             }),
                         Forms\Components\Textarea::make('message')
@@ -194,7 +247,30 @@ class OrderResource extends Resource
                 Tables\Columns\TextColumn::make('total')
                     ->label('Total')
                     ->money('ARS')
-                    ->sortable(),
+                    ->sortable()
+                    ->description(function ($record) {
+                        if ($record->coupon) {
+                            return "Cupón: {$record->coupon->code} (-{$record->discount_amount} ARS)";
+                        }
+                        return null;
+                    }),
+                /*                 Tables\Columns\TextColumn::make('subtotal')
+                    ->label('Subtotal')
+                    ->money('ARS')
+                    ->sortable()
+                    ->visibleFrom('lg')
+                    ->description(function ($record) {
+                        if ($record->coupon) {
+                            return "Con descuento del {$record->coupon->discount_percentage}%";
+                        }
+                        return null;
+                    }), */
+                Tables\Columns\TextColumn::make('coupon.code')
+                    ->label('Cupón')
+                    ->badge()
+                    ->color('success')
+                    ->visibleFrom('md')
+                    ->placeholder('Sin cupón'),
                 Tables\Columns\TextColumn::make('status')
                     ->label('Estado')
                     ->badge()
@@ -293,7 +369,8 @@ class OrderResource extends Resource
     protected static function updateTotal(Forms\Get $get, Forms\Set $set): void
     {
         $items = $get('items');
-        $total = 0;
+        $couponId = $get('coupon_id');
+        $subtotal = 0;
 
         if ($items) {
             foreach ($items as $item) {
@@ -301,12 +378,25 @@ class OrderResource extends Resource
                     $product = Product::find($item['product_id']);
                     if ($product) {
                         $quantity = $item['quantity'] ?? 1;
-                        $total += $product->price * $quantity;
+                        $subtotal += $product->price * $quantity;
                     }
                 }
             }
         }
 
+        // Calcular descuento si hay cupón
+        $discountAmount = 0;
+        if ($couponId) {
+            $coupon = \App\Models\Coupon::find($couponId);
+            if ($coupon && $coupon->is_active) {
+                $discountAmount = $coupon->calculateDiscount($subtotal);
+            }
+        }
+
+        $total = $subtotal - $discountAmount;
+
+        $set('subtotal', $subtotal);
+        $set('discount_amount', $discountAmount);
         $set('total', $total);
     }
 }

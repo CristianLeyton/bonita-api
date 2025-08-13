@@ -40,7 +40,6 @@ class ProductController extends Controller
             'id',
             'name',
             'slug',
-            'urlImage',
             'description',
             'sku',
             'price',
@@ -48,7 +47,8 @@ class ProductController extends Controller
             'categorie_id',
         ])->with([
             'categorie:id,name,slug',
-            'colors:id,name,hex_code'
+            'colors:id,name,hex_code',
+            'primaryImage:id,product_id,url,alt_text', // Solo la imagen principal para la lista
         ])->paginate($perPage);
 
         return response()->json([
@@ -68,7 +68,8 @@ class ProductController extends Controller
         $product = Product::where('slug', $slug)
             ->with([
                 'categorie:id,name,slug',
-                'colors:id,name,hex_code'
+                'colors:id,name,hex_code',
+                'images:id,product_id,url,alt_text,is_primary,sort_order' // Todas las imágenes
             ])->firstOrFail();
 
         return response()->json([

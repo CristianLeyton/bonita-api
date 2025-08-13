@@ -73,12 +73,12 @@ class OrderMessageParser
         }
 
         // Calcular el total real usando los precios de la base de datos
-        $total = 0;
+        $subtotal = 0;
         foreach ($items as &$item) {
             $product = $this->findProduct($item);
             if ($product) {
                 $item['price'] = $product->price;
-                $total += $product->price * $item['quantity'];
+                $subtotal += $product->price * $item['quantity'];
             }
         }
 
@@ -86,7 +86,7 @@ class OrderMessageParser
             'phone' => $phone,
             'address' => $this->extractAddress(),
             'postal_code' => $this->extractPostalCode(),
-            'total' => $total,
+            'subtotal' => $subtotal, // Cambiado de 'total' a 'subtotal' para mayor claridad
             'items' => $items
         ];
 
@@ -110,7 +110,12 @@ class OrderMessageParser
 
     public function getTotal()
     {
-        return $this->data['total'] ?? 0;
+        return $this->data['subtotal'] ?? 0;
+    }
+
+    public function getSubtotal()
+    {
+        return $this->data['subtotal'] ?? 0;
     }
 
     public function getItems()

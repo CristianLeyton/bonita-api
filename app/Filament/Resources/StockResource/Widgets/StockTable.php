@@ -25,7 +25,7 @@ class StockTable extends BaseWidget
             ->heading('Stock de productos')
             ->description('Si desea editar por completo un producto, dirigase a "Productos"')
             ->columns([
-                ImageColumn::make('urlImage')
+                ImageColumn::make('primaryImage.url')
                     ->label('Imagen')
                     ->square(),
                 TextColumn::make('name')

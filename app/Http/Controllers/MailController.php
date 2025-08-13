@@ -23,12 +23,14 @@ class MailController extends Controller
                 'email' => 'required|email',
                 'subject' => 'required|string',
                 'message' => 'required|string',
+                'coupon_code' => 'nullable|string|max:50', // Código de cupón opcional
             ]);
 
             Log::info('Iniciando procesamiento de pedido', [
                 'email' => $request->email,
                 'subject' => $request->subject,
-                'message' => $request->message
+                'message' => $request->message,
+                'coupon_code' => $request->coupon_code
             ]);
 
             $message = urldecode($request->message);
@@ -45,16 +47,43 @@ class MailController extends Controller
                 throw new \Exception('No se encontraron productos en el mensaje.');
             }
 
+            // Validar y aplicar cupón si se proporciona
+            $couponId = null;
+            $discountAmount = 0;
+            if ($request->coupon_code) {
+                $coupon = \App\Models\Coupon::where('code', $request->coupon_code)->first();
+
+                if (!$coupon) {
+                    throw new \Exception('El código de cupón no existe.');
+                }
+
+                if (!$coupon->is_active) {
+                    throw new \Exception('El cupón no está activo.');
+                }
+
+                $couponId = $coupon->id;
+                $discountAmount = $coupon->calculateDiscount($data['subtotal']);
+
+                Log::info('Cupón aplicado al pedido', [
+                    'coupon_code' => $request->coupon_code,
+                    'coupon_id' => $couponId,
+                    'discount_percentage' => $coupon->discount_percentage,
+                    'discount_amount' => $discountAmount
+                ]);
+            }
+
             Log::info('Datos extraídos del mensaje', [
                 'phone' => $data['phone'],
                 'address' => $data['address'],
                 'postal_code' => $data['postal_code'],
-                'total' => $data['total'],
+                'subtotal' => $data['subtotal'],
                 'items_count' => count($data['items']),
-                'items' => $data['items']
+                'items' => $data['items'],
+                'coupon_applied' => $couponId ? true : false,
+                'discount_amount' => $discountAmount
             ]);
 
-            // Crear la orden - los items se crearán automáticamente en el evento created del modelo
+            // Crear la orden con cupón si es válido
             $order = Order::create([
                 'email' => $request->email,
                 'subject' => $request->subject,
@@ -63,7 +92,10 @@ class MailController extends Controller
                 'phone' => $data['phone'],
                 'address' => $data['address'],
                 'postal_code' => $data['postal_code'],
-                'total' => $data['total'],
+                'coupon_id' => $couponId,
+                'subtotal' => $data['subtotal'],
+                'discount_amount' => $discountAmount,
+                'total' => $data['subtotal'] - $discountAmount,
             ]);
 
             Log::info('Orden creada', ['order_id' => $order->id]);
@@ -92,7 +124,14 @@ class MailController extends Controller
 
             return response()->json([
                 'message' => '¡Pedido enviado correctamente!',
-                'order' => $order->load('items.product', 'items.color'),
+                'order' => $order->load('items.product', 'items.color', 'coupon'),
+                'coupon_applied' => $couponId ? true : false,
+                'coupon_info' => $couponId ? [
+                    'code' => $request->coupon_code,
+                    'discount_percentage' => $coupon->discount_percentage,
+                    'discount_amount' => $discountAmount,
+                    'final_total' => $data['subtotal'] - $discountAmount
+                ] : null
             ]);
         } catch (\Exception $e) {
             DB::rollBack();

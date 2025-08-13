@@ -69,8 +69,27 @@
             </div>
             <div class="flex items-center gap-4">
                 <div class="text-right">
-                    <p class="text-sm text-gray-500">Total</p>
-                    <p class="text-2xl font-bold text-gray-900">${{ number_format($order->total ?? 0, 2) }}</p>
+                    @if ($order->coupon)
+                        <div class="mb-2">
+                            <p class="text-sm text-gray-500">Subtotal</p>
+                            <p class="text-lg font-semibold text-gray-900">
+                                ${{ number_format($order->subtotal ?? 0, 2) }}</p>
+                        </div>
+                        <div class="mb-2">
+                            <p class="text-sm text-gray-500">Descuento ({{ $order->coupon->code }})</p>
+                            <p class="text-lg font-semibold text-red-600">
+                                -${{ number_format($order->discount_amount ?? 0, 2) }}</p>
+                        </div>
+                        <div class="border-t pt-2">
+                            <p class="text-sm text-gray-500">Total Final</p>
+                            <p class="text-2xl font-bold text-gray-900">${{ number_format($order->total ?? 0, 2) }}</p>
+                        </div>
+                    @else
+                        <div>
+                            <p class="text-sm text-gray-500">Total</p>
+                            <p class="text-2xl font-bold text-gray-900">${{ number_format($order->total ?? 0, 2) }}</p>
+                        </div>
+                    @endif
                 </div>
             </div>
             <div class="status-badge {{ $statusColors[$order->status ?? 'pending'] }}">
@@ -109,7 +128,19 @@
                 @if ($order->message)
                     <div>
                         <p class="text-sm font-medium text-gray-500">Mensaje</p>
-                        <textarea rows="6" class="w-full mt-1 text-sm text-gray-900 whitespace-pre-wrap outline-none rounded bg-transparent" style="white-space: pre-line;">{!! $order->message !!}</textarea>
+                        <textarea rows="6"
+                            class="w-full mt-1 text-sm text-gray-900 whitespace-pre-wrap outline-none rounded bg-transparent"
+                            style="white-space: pre-line;">{!! $order->message !!}</textarea>
+                    </div>
+                @endif
+                @if ($order->coupon)
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Cupón Aplicado</p>
+                        <div class="mt-1 p-2 bg-green-50 rounded border border-green-200">
+                            <p class="text-sm font-medium text-green-800">{{ $order->coupon->name }}</p>
+                            <p class="text-xs text-green-600">Código: {{ $order->coupon->code }}</p>
+                            <p class="text-xs text-green-600">Descuento: {{ $order->coupon->discount_percentage }}%</p>
+                        </div>
                     </div>
                 @endif
             </div>
