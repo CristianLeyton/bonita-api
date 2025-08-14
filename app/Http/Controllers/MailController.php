@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Mail\OrderMail;
 use App\Models\Order;
+use App\Models\Coupon;
 use App\Models\User;
 use App\Notifications\NewOrderNotification;
 use App\Services\OrderMessageParser;
@@ -11,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Http\JsonResponse;
 
 class MailController extends Controller
 {
@@ -45,6 +47,16 @@ class MailController extends Controller
 
             if (empty($data['items'])) {
                 throw new \Exception('No se encontraron productos en el mensaje.');
+            }
+
+            // Verificar si hay discrepancias de precios
+            if ($data['has_discrepancies']) {
+                Log::warning('Discrepancias detectadas en el pedido', [
+                    'email' => $request->email,
+                    'message_total' => $data['message_total'],
+                    'calculated_subtotal' => $data['subtotal'],
+                    'price_discrepancies' => $data['price_discrepancies']
+                ]);
             }
 
             // Validar y aplicar cupón si se proporciona
@@ -101,16 +113,30 @@ class MailController extends Controller
             Log::info('Orden creada', ['order_id' => $order->id]);
 
             try {
+                // Preparar datos del cupón para el email
+                $couponInfo = null;
+                if ($couponId) {
+                    $couponInfo = [
+                        'code' => $request->coupon_code,
+                        'discount_percentage' => $coupon->discount_percentage,
+                        'subtotal' => $data['subtotal'],
+                        'discount_amount' => $discountAmount,
+                        'final_total' => $data['subtotal'] - $discountAmount
+                    ];
+                }
+
                 Mail::to($request->email)
                     ->bcc('leytoncristian96@gmail.com')
                     ->send(new OrderMail(
                         $request->subject,
-                        $message
+                        $message,
+                        $couponInfo
                     ));
 
                 Log::info('Correo enviado exitosamente', [
                     'order_id' => $order->id,
-                    'email' => $request->email
+                    'email' => $request->email,
+                    'coupon_applied' => $couponId ? true : false
                 ]);
             } catch (\Exception $mailError) {
                 Log::error('Error al enviar el correo', [
@@ -131,7 +157,13 @@ class MailController extends Controller
                     'discount_percentage' => $coupon->discount_percentage,
                     'discount_amount' => $discountAmount,
                     'final_total' => $data['subtotal'] - $discountAmount
-                ] : null
+                ] : null,
+                'price_validation' => [
+                    'has_discrepancies' => $data['has_discrepancies'],
+                    'message_total' => $data['message_total'],
+                    'calculated_subtotal' => $data['subtotal'],
+                    'discrepancies' => $data['price_discrepancies']
+                ]
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -152,5 +184,93 @@ class MailController extends Controller
                 'details' => config('app.debug') ? $e->getTraceAsString() : null
             ], 500);
         }
+    }
+
+    public function validate(Request $request): JsonResponse
+    {
+        $request->validate([
+            'code' => 'required|string|max:50',
+        ]);
+
+        $coupon = Coupon::where('code', $request->code)->first();
+
+        if (!$coupon) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cupón no encontrado',
+                'data' => null
+            ], 404);
+        }
+
+        if (!$coupon->is_active) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Este cupón no está activo',
+                'data' => null
+            ], 400);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Cupón válido',
+            'data' => [
+                'id' => $coupon->id,
+                'name' => $coupon->name,
+                'code' => $coupon->code,
+                'discount_percentage' => $coupon->discount_percentage,
+                'is_active' => $coupon->is_active,
+            ]
+        ]);
+    }
+
+    /**
+     * Calculate discount for a given price and coupon code
+     */
+    public function calculateDiscount(Request $request): JsonResponse
+    {
+        $request->validate([
+            'code' => 'required|string|max:50',
+            'price' => 'required|numeric|min:0',
+        ]);
+
+        $coupon = Coupon::where('code', $request->code)->first();
+
+        if (!$coupon) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cupón no encontrado',
+                'data' => null
+            ], 404);
+        }
+
+        if (!$coupon->is_active) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Este cupón no está activo',
+                'data' => null
+            ], 400);
+        }
+
+        $price = (float) $request->price;
+        $discountAmount = $coupon->calculateDiscount($price);
+        $finalPrice = $coupon->calculateFinalPrice($price);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Descuento calculado correctamente',
+            'data' => [
+                'coupon' => [
+                    'id' => $coupon->id,
+                    'name' => $coupon->name,
+                    'code' => $coupon->code,
+                    'discount_percentage' => $coupon->discount_percentage,
+                ],
+                'calculation' => [
+                    'original_price' => $price,
+                    'discount_amount' => round($discountAmount, 2),
+                    'final_price' => round($finalPrice, 2),
+                ]
+            ]
+        ]);
     }
 }

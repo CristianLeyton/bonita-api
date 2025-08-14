@@ -73,7 +73,11 @@ class ProductResource extends Resource
                         $isPrimary = $state['is_primary'] ?? false;
                         $label = $state['alt_text'] ?? 'Nueva imagen';
                         return $isPrimary ? "⭐ {$label}" : $label;
-                    }),
+                    })
+                    ->validationMessages([
+                        'min' => 'Debes agregar al menos una imagen',
+                        'max' => 'No puedes agregar más de 5 imágenes'
+                    ]),
 
                 Forms\Components\TextInput::make('sku')
                     ->label('SKU: ')

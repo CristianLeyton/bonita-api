@@ -35,7 +35,7 @@ class ProductController extends Controller
         $query->orderBy($sortField, $sortDirection);
 
         // Paginación
-        $perPage = $request->input('per_page', 15);
+        $perPage = $request->input('per_page', 1000);
         $products = $query->select([
             'id',
             'name',

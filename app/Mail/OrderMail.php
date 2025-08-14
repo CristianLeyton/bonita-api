@@ -14,11 +14,13 @@ class OrderMail extends Mailable
 
     public $mailSubject;
     public $mailMessage;
+    public $couponInfo;
 
-    public function __construct($subject, $message)
+    public function __construct($subject, $message, $couponInfo = null)
     {
         $this->mailSubject = $subject;
         $this->mailMessage = $message;
+        $this->couponInfo = $couponInfo;
     }
 
     public function envelope(): Envelope
@@ -34,6 +36,7 @@ class OrderMail extends Mailable
             view: 'emails.order',
             with: [
                 'mailMessage' => $this->mailMessage,
+                'couponInfo' => $this->couponInfo,
             ],
         );
     }

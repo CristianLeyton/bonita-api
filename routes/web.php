@@ -19,8 +19,8 @@ Route::get('/api/products', [ProductController::class, 'index']);
 Route::get('/api/categories/{slug}/products', [CategoryController::class, 'products']);
 Route::get('/api/products/{slug}', [ProductController::class, 'show']);
 Route::post('/api/send-mail', [MailController::class, 'send'])->withoutMiddleware(['web']);
-Route::post('/api/coupons/validate', [CouponController::class, 'validate']);
-Route::post('/api/coupons/calculate-discount', [CouponController::class, 'calculateDiscount']);
+Route::post('/api/coupons/validate', [MailController::class, 'validate'])->withoutMiddleware(['web']);
+Route::post('/api/coupons/calculate-discount', [MailController::class, 'calculateDiscount'])->withoutMiddleware(['web']);
 
 /* Route::get('/clear-cache', function () {
     Artisan::call('config:clear');

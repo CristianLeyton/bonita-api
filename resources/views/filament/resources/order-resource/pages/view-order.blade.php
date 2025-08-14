@@ -62,6 +62,56 @@
 <div class="space-y-8 w-full">
     {{-- Header con estado y total --}}
     <div class="rounded-lg shadow-md p-6 bg-gray-900 mt-0">
+        {{-- Alerta de discrepancias de precios --}}
+        @if ($order->message && str_contains($order->message, 'Precio:'))
+            @php
+                $parser = new \App\Services\OrderMessageParser($order->message);
+                $data = $parser->parse();
+            @endphp
+
+            @if ($data['has_discrepancies'])
+                <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd"
+                                    d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                                    clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-sm font-medium text-red-800">
+                                ⚠️ Discrepancia de Precios Detectada
+                            </h3>
+                            <div class="mt-2 text-sm text-red-700">
+                                <p>Se detectaron diferencias entre los precios del mensaje y la base de datos:</p>
+                                <ul class="mt-2 list-disc list-inside">
+                                    @foreach ($data['price_discrepancies'] as $discrepancy)
+                                        <li>
+                                            <strong>{{ $discrepancy['product'] }}</strong>:
+                                            Mensaje: ${{ number_format($discrepancy['message_price'], 2) }} |
+                                            BD: ${{ number_format($discrepancy['db_price'], 2) }}
+                                            <span class="text-red-600">
+                                                (Diferencia: ${{ number_format($discrepancy['difference'], 2) }})
+                                            </span>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                                <p class="mt-2">
+                                    <strong>Total del mensaje:</strong>
+                                    ${{ number_format($data['message_total'] ?? 0, 2) }} |
+                                    <strong>Total calculado:</strong> ${{ number_format($data['subtotal'] ?? 0, 2) }}
+                                </p>
+                                <p class="mt-1 text-xs text-red-600">
+                                    <strong>Nota:</strong> Se usó el precio de la base de datos para el cálculo final.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @endif
+        @endif
+
         <div class="flex justify-between items-center">
             <div class="">
                 <h2 class="text-2xl font-bold text-gray-900">Pedido #{{ $order->id }}</h2>
