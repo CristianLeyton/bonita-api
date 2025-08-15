@@ -102,14 +102,21 @@ class OrderMessageParser
                 $item['product_id'] = $product->id;
                 $subtotal += $product->price * $item['quantity'];
 
-                // Verificar si hay discrepancia entre precio del mensaje y BD
+                // Verificar si hay discrepancia entre precio total del mensaje y BD
+                // IMPORTANTE: El mensaje trae precio TOTAL por producto, no unitario
                 if (isset($item['message_price']) && $item['message_price'] !== null) {
-                    if (abs($item['message_price'] - $product->price) > 0.01) {
+                    $messageTotalForItem = $item['message_price']; // Ya es el total por producto
+                    $dbTotalForItem = $product->price * $item['quantity'];
+
+                    if (abs($messageTotalForItem - $dbTotalForItem) > 0.01) {
                         $priceDiscrepancies[] = [
                             'product' => $item['name'],
-                            'message_price' => $item['message_price'],
-                            'db_price' => $product->price,
-                            'difference' => $item['message_price'] - $product->price
+                            'quantity' => $item['quantity'],
+                            'message_price_total' => $item['message_price'], // Precio total del mensaje
+                            'db_price_unit' => $product->price, // Precio unitario de BD
+                            'db_price_total' => $dbTotalForItem, // Precio total calculado de BD
+                            'message_price_unit_calculated' => $item['message_price'] / $item['quantity'], // Precio unitario calculado del mensaje
+                            'difference' => $messageTotalForItem - $dbTotalForItem
                         ];
                     }
                 }

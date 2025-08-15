@@ -105,9 +105,7 @@ class MailController extends Controller
                 'address' => $data['address'],
                 'postal_code' => $data['postal_code'],
                 'coupon_id' => $couponId,
-                'subtotal' => $data['subtotal'],
-                'discount_amount' => $discountAmount,
-                'total' => $data['subtotal'] - $discountAmount,
+                // No establecer totales aquí, el modelo se encargará
             ]);
 
             Log::info('Orden creada', ['order_id' => $order->id]);
@@ -126,7 +124,8 @@ class MailController extends Controller
                 }
 
                 Mail::to($request->email)
-                    ->bcc('leytoncristian96@gmail.com')
+                    ->bcc('bonnitaglam@gmail.com')
+                    /* ->bcc('leytoncristian96@gmail.com') */
                     ->send(new OrderMail(
                         $request->subject,
                         $message,

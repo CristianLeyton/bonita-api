@@ -88,10 +88,23 @@
                                 <ul class="mt-2 list-disc list-inside">
                                     @foreach ($data['price_discrepancies'] as $discrepancy)
                                         <li>
-                                            <strong>{{ $discrepancy['product'] }}</strong>:
-                                            Mensaje: ${{ number_format($discrepancy['message_price'], 2) }} |
-                                            BD: ${{ number_format($discrepancy['db_price'], 2) }}
-                                            <span class="text-red-600">
+                                            <strong>{{ $discrepancy['product'] }}</strong> (Cantidad:
+                                            {{ $discrepancy['quantity'] }})
+                                            <br>
+                                            <span class="text-sm">
+                                                Precio total mensaje:
+                                                ${{ number_format($discrepancy['message_price_total'], 2) }} |
+                                                Precio unitario BD:
+                                                ${{ number_format($discrepancy['db_price_unit'], 2) }}
+                                            </span>
+                                            <br>
+                                            <span class="text-sm">
+                                                Precio unitario calculado del mensaje:
+                                                ${{ number_format($discrepancy['message_price_unit_calculated'], 2) }} |
+                                                Total calculado BD:
+                                                ${{ number_format($discrepancy['db_price_total'], 2) }}
+                                            </span>
+                                            <span class="text-red-600 font-medium">
                                                 (Diferencia: ${{ number_format($discrepancy['difference'], 2) }})
                                             </span>
                                         </li>

@@ -130,24 +130,26 @@ class CouponResource extends Resource
                 Tables\Actions\EditAction::make()
                     ->button()
                     ->size(\Filament\Support\Enums\ActionSize::Small)
+                    ->hiddenLabel()
                     ->color('primary')
                     ->modalHeading('Editar cupón')
                     ->modalDescription('Modifica la información del cupón')
                     ->modalSubmitActionLabel('Guardar cambios')
                     ->modalCancelActionLabel('Cancelar'),
-                Tables\Actions\DeleteAction::make()
+                /* Tables\Actions\DeleteAction::make()
                     ->button()
                     ->size(\Filament\Support\Enums\ActionSize::Small)
+                    ->hiddenLabel()
                     ->color('danger')
                     ->modalHeading('Eliminar cupón')
                     ->modalDescription('¿Estás seguro de que quieres eliminar este cupón? Esta acción no se puede deshacer.')
                     ->modalSubmitActionLabel('Sí, eliminar')
-                    ->modalCancelActionLabel('Cancelar'),
+                    ->modalCancelActionLabel('Cancelar'), */
             ])
             ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
+/*                 Tables\Actions\BulkActionGroup::make([
+                     Tables\Actions\DeleteBulkAction::make(), 
+                ]), */
             ])
             ->defaultSort('created_at', 'desc');
     }

@@ -105,9 +105,26 @@ class Order extends Model
         static::creating(function ($order) {
             if ($order->message && str_contains($order->message, 'Celular:')) {
                 $parser = new OrderMessageParser($order->message);
+
+                // Establecer datos básicos
                 $order->phone = $parser->getPhone();
                 $order->address = $parser->getAddress();
                 $order->postal_code = $parser->getPostalCode();
+
+                // Calcular subtotal del parser
+                $order->subtotal = $parser->getSubtotal();
+
+                // Calcular descuento si hay cupón
+                $order->discount_amount = 0;
+                if ($order->coupon_id) {
+                    $coupon = Coupon::find($order->coupon_id);
+                    if ($coupon && $coupon->is_active) {
+                        $order->discount_amount = $coupon->calculateDiscount($order->subtotal);
+                    }
+                }
+
+                // Calcular total final
+                $order->total = $order->subtotal - $order->discount_amount;
             }
         });
 
@@ -137,9 +154,7 @@ class Order extends Model
                     throw new \Exception('No se encontraron productos en el mensaje.');
                 }
 
-                // Calcular totales con el nuevo método
-                $order->calculateTotals();
-                $order->save();
+                // Los totales ya se calcularon en creating, no es necesario recalcular
             }
         });
 
